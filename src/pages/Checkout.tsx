@@ -35,7 +35,7 @@ const Checkout = () => {
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const [showFailureModal, setShowFailureModal] = useState(false);
   const [error, setError] = useState('');
-  const [validationErrors, setValidationErrors] = useState({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   if (items.length === 0) {
     return <Navigate to="/cart" />;
@@ -56,7 +56,7 @@ const Checkout = () => {
   };
 
   const validateForm = () => {
-    const errors = {};
+    const errors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) errors.firstName = 'Required';
     if (!formData.lastName.trim()) errors.lastName = 'Required';
@@ -296,7 +296,7 @@ const Checkout = () => {
                     placeholder="1234 5678 9012 3456" 
                     value={formData.cardNumber}
                     onChange={handleInputChange}
-                    maxLength="19"
+                    maxLength={19}
                     className={validationErrors.cardNumber ? 'border-red-500' : ''}
                   />
                   {validationErrors.cardNumber && (
@@ -324,7 +324,7 @@ const Checkout = () => {
                       placeholder="MM/YY" 
                       value={formData.expiry}
                       onChange={handleInputChange}
-                      maxLength="5"
+                      maxLength={5}
                       className={validationErrors.expiry ? 'border-red-500' : ''}
                     />
                     {validationErrors.expiry && (
@@ -338,7 +338,7 @@ const Checkout = () => {
                       placeholder="123" 
                       value={formData.cvv}
                       onChange={handleInputChange}
-                      maxLength="4"
+                      maxLength={4}
                       className={validationErrors.cvv ? 'border-red-500' : ''}
                     />
                     {validationErrors.cvv && (
